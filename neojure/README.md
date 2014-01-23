@@ -1,6 +1,7 @@
-# cljs-start-learn
+# neojure
 
-A ClojureScript library designed to ... well, that part is up to you.
+This is a work in progress wrapper for clojurescript.
+The goal is minimal, wrap a few common cases.
 
 ## Usage
 
