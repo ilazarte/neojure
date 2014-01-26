@@ -1,14 +1,23 @@
-;;; If this namespace requires macros, remember that ClojureScript's
-;;; macros are written in Clojure and have to be referenced via the
-;;; :require-macros directive where the :as keyword is required. Even
-;;; if you can add files containing macros and compile-time only
-;;; functions in the :source-paths setting of the :builds, it is
-;;; strongly suggested to add them to the leiningen :source-paths.
+(ns neojure.frontend
+  (:require [neojure.dom :as dom]))
 
-;; Realtime chart example found in nvd3 github test/realTimeChartTest.html
-;; 
+; Realtime chart example found in nvd3 github test/realTimeChartTest.html
 
-(ns neojure.frontend)
+;--------------------------------------------------------------------
+; begin: state
+;
+;     the data atom will hold all charts.
+;     the first level key will be a key to the id on the page
+;     the second keys are the selector, chart instance, and data
+;--------------------------------------------------------------------
+
+(def state (atom {}))
+
+;--------------------------------------------------------------------
+; end: state
+;--------------------------------------------------------------------
+
+; TODO vec operations imply a protocol to me
 
 (defn- index-vec
   "Find the index of the item by predicate"
@@ -30,192 +39,106 @@
       (conj coll val))))
 
 (defn- push-vec
+  "Pop the head add the new elem at the end"
   [coll elem]
   (-> coll rest vec (conj elem)))
 
-(defn- line-chart-model 
-  []
-  (let [opts {:margin             {:left 50 :bottom: 50}
-              :x                  (fn [d i] i)
-              :showXAxis          true
-              :showYAxis          true
-              :transitionDuration 250}] 
-    (-> 
-      (js/nv.models.lineChart)
-      (.useInteractiveGuideline true)
-      (.options (clj->js opts)))))
-
-(defn- sin
-  [val]
-  (js/Math.sin val))
-
-(defn- cos
-  [val]
-  (js/Math.cos val))
-
-(defn- random
-  []
-  (js/Math.random))
-
-;--------------------------------------------------------------------
-; begin: state
-;
-;     the data atom will hold all charts.
-;     the first level key will be a key to the id on the page
-;     the second keys are the selector, chart instance, and data
-;--------------------------------------------------------------------
-
-(def data (atom {}))
-
-;--------------------------------------------------------------------
-; end: state
-;--------------------------------------------------------------------
-
-(defn sin-and-cos
-  "Produce the sin and cos data used by the line chart nvd3 demo"
-  [max]
-  (let [r          (range 0 max)
-   sin-fn     (fn [i] {:x i :y (if (= (mod i 10) 5) nil (sin (/ i 10)))})
-   cos-fn     (fn [i] {:x i :y (* .5 (cos (/ i 10)))})
-   rand-fn    (fn [i] {:x i :y (/ (random) 10)})
-   rand2-fn   (fn [i] {:x i :y (+ (cos (/ i 10)) (/ (random) 10))})
-   sin-coll   (mapv sin-fn r)
-   cos-coll   (mapv cos-fn r)
-   rand-coll  (mapv rand-fn r)
-   rand2-coll (mapv rand2-fn r)]
-    [{:area   true
-      :values sin-coll
-      :key    "Sine Wave"
-      :color  "#ff7f0e"}
-     {:values cos-coll
-      :key    "Cosine Wave"
-      :color  "#2ca02c"}
-     {:values rand-coll
-      :key    "Random Points"
-      :color  "#2222ff"}
-     {:values rand2-coll
-      :key    "Random Cosine"
-      :color  "#667711"}]))
-
-(defn select 
-  ([selector]
-    (js/d3.select selector))
-  ([selection selector]
-    (.select selection selector)))
-
-(defn select-all [selector]
-  (js/d3.selectAll selector))
-
-(defn append [selection tagname]
-  (.append selection tagname))
-
-(defn attr [selection key val]
-  (.attr selection key val))
-
-(defn style [selection val]
-  (attr selection "style" val))
-
-(defn size [selection]
-  (.size selection))
-
-(defn put-by-tag
-  "Add an element if it does not exist by tag already to a parent selection"
-  [selection tagname]
-  (let [el  (select selection tagname)
-        len (size el)]
-    (if (= len 1)
-      el
-      (-> selection (append tagname)))))
-
-(defn put-by-id 
-  "Add an element if it does not exist by id already to a parent selection"
-  [selection tagname id]
-  (let [el  (select selection (str "#" id))
-        len (size el)]
-    (if (= len 1)
-      el
-      (-> selection (append tagname) (attr "id" id)))))
-
-(defn line-chart
-  "Create a line chart at the selector"
-  [selector data config]
-  (let [chart (line-chart-model)]
-    (-> 
-      (.-xAxis chart)
-      (.axisLabel (:xlabel config))
-      (.tickFormat (js/d3.format (:xformat config))))
-    
-    (-> 
-      (.-yAxis chart)
-      (.axisLabel (:ylabel config))
-      (.tickFormat (js/d3.format (:yformat config))))
-    
-    (->
-      (select selector)
-      (.datum (clj->js data))
-      (.transition)
-      (.duration 500)
-      (.call chart))
-
-    (js/nv.utils.windowResize #(.update chart))
-    
-    chart))
-
-(defn add-graph [f]
+(defn- add-graph [f]
   (js/nv.addGraph f))
 
-(defn put-chart-state!
-  [idkey selector chart datum]
+(defn- put-chart-state!
+  [idkey selector model datum]
   (let [set-chart #(identity {:selector selector
-                              :chart    chart
+                              :model    model
                               :datum    datum})]
-    (swap! data #(update-in % [idkey] set-chart))
+    (swap! state #(update-in % [idkey] set-chart))
     
     nil))
 
-(defn put-line-chart
-  "Create a line chart at the id and update the data atom"
-  [id]
-
-  (let [bodyselection (select "body")
-        idselection   (put-by-id bodyselection "div" id)
-        svgselection  (put-by-tag idselection "svg")]
+(defn- render-chart
+  "Create a line chart at the selector"
+  [selector config]
+  
+  (let [model (:model config)
+        datum (:datum config)
+        axes  (:axes config)]
+    (-> 
+      (.-xAxis model)
+      (.axisLabel (:xlabel axes))
+      (.tickFormat (js/d3.format (:xformat axes))))
     
-    (style idselection "width:650px; height:450px")
+    (-> 
+      (.-yAxis model)
+      (.axisLabel (:ylabel axes))
+      (.tickFormat (js/d3.format (:yformat axes))))
     
-    (style svgselection "width:600px; height:400px")
+    (->
+      (dom/select selector)
+      (.datum (clj->js datum))
+      (.transition)
+      (.duration 500)
+      (.call model))
 
-    (let [idkey    (keyword id)
-          selector (str "#" id " svg")
-          datum    (sin-and-cos 100)
-          config   {:xlabel  "Time (s)"
-                    :xformat ",.1f"
-                    :ylabel  "Voltage (v)"
-                    :yformat ",.2f"}
-          chart    (line-chart selector datum config)]
+    (js/nv.utils.windowResize #(.update model))
+    
+    model))
 
-      (put-chart-state! idkey selector chart datum)
+(defn line-chart-model
+  
+  "Create a line chart model.
+   No args is reasonable defaults
+   Interactive lnie chart is available on the model by default"
+  
+  ([] (line-chart-model {:margin             {:left 50 :bottom 50}
+                         :x                  (fn [d i] i)
+                         :showXAxis          true
+                         :showYAxis          true
+                         :transitionDuration 250})) 
+  ([opts]
+    (-> 
+        (js/nv.models.lineChart)
+        (.useInteractiveGuideline true)
+        (.options (clj->js opts)))))
+
+(defn create-chart
+  
+  "Create and render a new chart with <id> and config
+   The element div#<id> should exist already.
+   The config should contain keys axes, datum, model"
+  
+  [id config]
+  
+  (let [idkey    (keyword id)
+        selector (str "#" id " svg")
+        datum    (:datum config)
+        model    (render-chart selector config)]
+
+      (put-chart-state! idkey selector model datum)
       
-      (add-graph #(identity chart)))))
+      (add-graph #(identity model))))
 
 (defn update-chart
-  "Update the chart with the id"
-  [id]
+  
+  "Update and render the chart <id> with a new observation.
+   An observaton is defined identically to the series,
+   but only has one data point"
+  
+  [id new-obs]
+  
   (let [idkey     (keyword id)
-        new-obs   (sin-and-cos 1)
-        old-data  (idkey @data)
+        old-data  (idkey @state)
         selector  (:selector old-data)
-        chart     (:chart old-data)
+        model     (:model old-data)
         datum     (:datum old-data)
         update-fn #(assoc %1 :values (push-vec (:values %1) (first (:values %2))))
         new-datum (mapv update-fn datum new-obs)]
     
-    (put-chart-state! idkey selector chart new-datum)
+    (put-chart-state! idkey selector model new-datum)
     
     (->
-      (select selector)
+      (dom/select selector)
       (.datum (clj->js new-datum)))
     
-    (.update chart)
-      
+    (.update model)
+    
     nil))

@@ -3,11 +3,13 @@
 TODO: write [great documentation](http://jacobian.org/writing/great-documentation/what-to-write/)
 
 todo:
-	
+- how to configure the chart itself via web page
+- bootstrap proj?
+
+done:
 - multiline chart with value bar
 - add update function reference to atom? how is it configured?
 - save source to github
-- how to configure the chart itself via web page
 
 Random:
 
