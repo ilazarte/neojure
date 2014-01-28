@@ -46,18 +46,18 @@
   (let [bodyselection (dom/select "body")
         idselection   (dom/put-by-id bodyselection "div" id)
         svgselection  (dom/put-by-tag idselection "svg")
-        config        {:datum (sin-and-cos-series 100)
-                       :model (frontend/line-chart-model)
-                       :axes  {:xlabel  "Time (s)"
-                               :xformat ",.1f"
-                               :ylabel  "Voltage (v)"
-                               :yformat ",.2f"}} ]
+        config        {:type   :line-chart
+                       :datum   (sin-and-cos-series 100)
+                       :options {:xlabel  "Time (s)"
+                                 :xformat ",.1f"
+                                 :ylabel  "Voltage (v)"
+                                 :yformat ",.2f"}} ]
     
     (dom/style idselection "width:650px; height:450px")
     (dom/style svgselection "width:600px; height:400px")
    
-    (frontend/create-chart id config)))
+    (frontend/create id config)))
 
 (defn update-demo-line-chart
   [id]
-  (frontend/update-chart id (sin-and-cos-series 1)))
+  (frontend/update id (sin-and-cos-series 1)))

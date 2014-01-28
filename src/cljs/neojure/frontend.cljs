@@ -8,7 +8,7 @@
 ;
 ;     the data atom will hold all charts.
 ;     the first level key will be a key to the id on the page
-;     the second keys are the selector, chart instance, and data
+;     the second keys are the selector, model, and datum
 ;--------------------------------------------------------------------
 
 (def state (atom {}))
@@ -17,36 +17,21 @@
 ; end: state
 ;--------------------------------------------------------------------
 
-; TODO vec operations imply a protocol to me
+(defn- shiftv
+  "Push out as many items in from and concat to end of to"
+  [to from]
+  (-> 
+    (drop (count from) to)
+    (concat from)
+    (vec)))
 
-(defn- index-vec
-  "Find the index of the item by predicate"
-  [coll pred]
-  (first (keep-indexed #(when (pred %2) %1) coll)))
-
-(defn- get-vec
-  "Get the value from a collection by predicate"
-  [coll pred]
-  (first (filter pred coll)))
-
-(defn- put-vec
-  "Update a val by predicate"
-  [coll pred val]
-  (let [exists (some pred coll)
-        updater #(if (pred %) val %)]
-    (if exists
-      (map updater coll)
-      (conj coll val))))
-
-(defn- push-vec
-  "Pop the head add the new elem at the end"
-  [coll elem]
-  (-> coll rest vec (conj elem)))
-
-(defn- add-graph [f]
+(defn- add-graph
+  "nvd3 rendering queue"
+  [f]
   (js/nv.addGraph f))
 
 (defn- put-chart-state!
+  "Update the state atom" 
   [idkey selector model datum]
   (let [set-chart #(identity {:selector selector
                               :model    model
@@ -55,23 +40,48 @@
     
     nil))
 
+(defn- line-chart-model
+  "Create a line chart model with sensible defaults
+   TODO how can this reuse the options?"
+  [] 
+  (-> 
+    (js/nv.models.lineChart)
+    (.useInteractiveGuideline true)
+    (.options (clj->js {:margin             {:left 50 :bottom 50}
+                        :x                  (fn [d i] i)
+                        :showXAxis          true
+                        :showYAxis          true
+                        :transitionDuration 250}))))
+
+(defn- make-model
+  "Create the nvd3 model instanced based on the keyword identifier."
+  [kw]
+  (cond
+    (keyword-identical? kw :line-chart) (line-chart-model)
+    :else (throw (js/Error. "No valid chart type configured."))))
+
 (defn- render-chart
   "Create a line chart at the selector"
   [selector config]
   
-  (let [model (:model config)
-        datum (:datum config)
-        axes  (:axes config)]
-    (-> 
-      (.-xAxis model)
-      (.axisLabel (:xlabel axes))
-      (.tickFormat (js/d3.format (:xformat axes))))
+  (let [model   (make-model (:type config))
+        datum   (:datum config)
+        options (:options config)
+        xaxis   (.-xAxis model)
+        yaxis   (.-yAxis model)]
     
-    (-> 
-      (.-yAxis model)
-      (.axisLabel (:ylabel axes))
-      (.tickFormat (js/d3.format (:yformat axes))))
-    
+    (when (contains? options :xlabel)
+      (.axisLabel xaxis (:xlabel options)))
+
+    (when (contains? options :xformat)
+      (.tickFormat xaxis (js/d3.format (:xformat options))))
+
+    (when (contains? options :ylabel)
+      (.axisLabel yaxis (:ylabel options)))
+
+    (when (contains? options :yformat)
+      (.tickFormat yaxis (js/d3.format (:yformat options))))
+
     (->
       (dom/select selector)
       (.datum (clj->js datum))
@@ -83,29 +93,10 @@
     
     model))
 
-(defn line-chart-model
-  
-  "Create a line chart model.
-   No args is reasonable defaults
-   Interactive lnie chart is available on the model by default"
-  
-  ([] (line-chart-model {:margin             {:left 50 :bottom 50}
-                         :x                  (fn [d i] i)
-                         :showXAxis          true
-                         :showYAxis          true
-                         :transitionDuration 250})) 
-  ([opts]
-    (-> 
-        (js/nv.models.lineChart)
-        (.useInteractiveGuideline true)
-        (.options (clj->js opts)))))
-
-(defn create-chart
-  
+(defn create
   "Create and render a new chart with <id> and config
    The element div#<id> should exist already.
    The config should contain keys axes, datum, model"
-  
   [id config]
   
   (let [idkey    (keyword id)
@@ -117,20 +108,18 @@
       
       (add-graph #(identity model))))
 
-(defn update-chart
-  
+(defn update
   "Update and render the chart <id> with a new observation.
-   An observaton is defined identically to the series,
-   but only has one data point"
-  
+   An observaton is defined identically to the series.
+   The series will bes hifted by the amount found in the new series.
+   This means if the new len >= old len, it uses the entire new set."
   [id new-obs]
-  
   (let [idkey     (keyword id)
         old-data  (idkey @state)
         selector  (:selector old-data)
         model     (:model old-data)
         datum     (:datum old-data)
-        update-fn #(assoc %1 :values (push-vec (:values %1) (first (:values %2))))
+        update-fn #(assoc %1 :values (shiftv (:values %1) (:values %2)))
         new-datum (mapv update-fn datum new-obs)]
     
     (put-chart-state! idkey selector model new-datum)
@@ -140,5 +129,5 @@
       (.datum (clj->js new-datum)))
     
     (.update model)
-    
+  
     nil))
