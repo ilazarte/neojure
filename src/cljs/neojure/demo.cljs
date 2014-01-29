@@ -40,24 +40,56 @@
       :key    "Random Cosine"
       :color  "#667711"}]))
 
-(defn create-demo-line-chart
-  "Create a a line chart by adding a few dom elements first"
+(defn discrete-series
+  "Produce a chart "
+  []
+  [{:key "Facebook"
+    :value (random)}
+   {:key "Google"
+    :value (random)}
+   {:key "Apple"
+    :value (random)}
+   {:key "Microsoft"
+    :value (random)}
+   {:key "Cisco"
+    :value (random)}
+   {:key "Intel"
+    :value (random)}
+   {:key "IBM"
+    :value (random)}])
+
+(defn put-chart-dom
+  "Assert the div and svg container elements"
   [id]
   (let [bodyselection (dom/select "body")
         idselection   (dom/put-by-id bodyselection "div" id)
-        svgselection  (dom/put-by-tag idselection "svg")
-        config        {:type   :line-chart
+        svgselection  (dom/put-by-tag idselection "svg")]
+    (dom/style idselection "width:650px; height:450px")
+    (dom/style svgselection "width:600px; height:400px")))
+
+(defn create-demo-line-chart
+  "Create a a line chart by adding a few dom elements first"
+  [id]
+  (put-chart-dom id) 
+  (frontend/create id {:type   :line-chart
                        :datum   (sin-and-cos-series 100)
                        :options {:xlabel  "Time (s)"
                                  :xformat ",.1f"
                                  :ylabel  "Voltage (v)"
-                                 :yformat ",.2f"}} ]
-    
-    (dom/style idselection "width:650px; height:450px")
-    (dom/style svgselection "width:600px; height:400px")
-   
-    (frontend/create id config)))
+                                 :yformat ",.2f"}}))
 
 (defn update-demo-line-chart
   [id]
   (frontend/update id (sin-and-cos-series 1)))
+
+(defn create-demo-pie-chart
+  "Create a a line chart by adding a few dom elements first"
+  [id]
+  (put-chart-dom id)
+  (frontend/create id {:type   :pie-chart
+                       :datum   (discrete-series)
+                       :options {:valueFormat ",.2f"}}))
+
+(defn update-demo-pie-chart
+  [id]
+  (frontend/update id (discrete-series)))

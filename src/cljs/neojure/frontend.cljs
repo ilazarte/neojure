@@ -1,6 +1,18 @@
 (ns neojure.frontend
   (:require [neojure.dom :as dom]))
 
+;--------------------------------------------------------------------
+; begin: description
+; 
+;     keep down complexity by specifying all datasets as a vector.
+;     each item in the vector represents a series
+;     each series can have [key, value(s), color] as keys.
+;     key serves double function as a label.
+;     if value is used the model type is assumed a discrete chart type
+;     discrete include bar charts, pie charts
+;     continuous are line charts
+;--------------------------------------------------------------------
+
 ; Realtime chart example found in nvd3 github test/realTimeChartTest.html
 
 ;--------------------------------------------------------------------
@@ -41,7 +53,7 @@
     nil))
 
 (defn- line-chart-model
-  "Create a line chart model with sensible defaults
+  "Create a line chart model.
    TODO how can this reuse the options?"
   [] 
   (-> 
@@ -53,12 +65,26 @@
                         :showYAxis          true
                         :transitionDuration 250}))))
 
+(defn- pie-chart-model
+  "Create a pie chart model."
+  []
+  (->
+    (js/nv.models.pieChart)
+    (.options (clj->js {:margin {:left 50 :bottom 50}
+                        :x      (fn [d] (.-key d))
+                        :y      (fn [d] (.-value d))
+                        :color  (-> 
+                                  (js/d3.scale.category10)
+                                  (.range))}))))
+
 (defn- make-model
   "Create the nvd3 model instanced based on the keyword identifier."
   [kw]
-  (cond
-    (keyword-identical? kw :line-chart) (line-chart-model)
-    :else (throw (js/Error. "No valid chart type configured."))))
+  (let [is? (partial keyword-identical? kw)]
+    (cond
+      (is? :line-chart) (line-chart-model)
+      (is? :pie-chart)  (pie-chart-model) 
+      :else (throw (js/Error. "No valid chart type configured.")))))
 
 (defn- render-chart
   "Create a line chart at the selector"
@@ -68,20 +94,28 @@
         datum   (:datum config)
         options (:options config)
         xaxis   (.-xAxis model)
-        yaxis   (.-yAxis model)]
+        yaxis   (.-yAxis model)
+        has?    (partial contains? options)]
     
-    (when (contains? options :xlabel)
+    (comment "line model")
+    
+    (when (has? :xlabel)
       (.axisLabel xaxis (:xlabel options)))
 
-    (when (contains? options :xformat)
+    (when (has? :xformat)
       (.tickFormat xaxis (js/d3.format (:xformat options))))
 
-    (when (contains? options :ylabel)
+    (when (has? :ylabel)
       (.axisLabel yaxis (:ylabel options)))
 
-    (when (contains? options :yformat)
+    (when (has? :yformat)
       (.tickFormat yaxis (js/d3.format (:yformat options))))
 
+    (comment "pie model")
+    
+    (when (has? :valueFormat)
+      (.valueFormat model (js/d3.format (:valueFormat options))))
+    
     (->
       (dom/select selector)
       (.datum (clj->js datum))
@@ -92,6 +126,13 @@
     (js/nv.utils.windowResize #(.update model))
     
     model))
+
+(defn- assoc-by-key-type
+  "Update discrete series if :value found else, assume :values"
+  [to from]
+  (if (contains? to :value)
+    (assoc to :value (:value from))
+    (assoc to :values (shiftv (:values to) (:values from)))))
 
 (defn create
   "Create and render a new chart with <id> and config
@@ -119,8 +160,7 @@
         selector  (:selector old-data)
         model     (:model old-data)
         datum     (:datum old-data)
-        update-fn #(assoc %1 :values (shiftv (:values %1) (:values %2)))
-        new-datum (mapv update-fn datum new-obs)]
+        new-datum (mapv assoc-by-key-type datum new-obs)]
     
     (put-chart-state! idkey selector model new-datum)
     
