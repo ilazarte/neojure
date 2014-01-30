@@ -8,9 +8,11 @@
 ;     each item in the vector represents a series
 ;     each series can have [key, value(s), color] as keys.
 ;     key serves double function as a label.
-;     if value is used the model type is assumed a discrete chart type
-;     discrete include bar charts, pie charts
-;     continuous are line charts
+;     if value key is used the model type is assumed a discrete chart type
+;     continuous datasets are sometimes used in seemingly discrete situations
+;     multibarchart is an example of a discrete ui that uses continuous data
+;
+; the goal is to have a key for every type of model object available in d3
 ;--------------------------------------------------------------------
 
 ; Realtime chart example found in nvd3 github test/realTimeChartTest.html
@@ -52,9 +54,14 @@
     
     nil))
 
-(defn- line-chart-model
-  "Create a line chart model.
-   TODO how can this reuse the options?"
+(defn- colors
+  []
+  (->
+    (js/d3.scale.category20)
+    (.range)))
+
+(defn line-chart-model
+  "Create a line chart model."
   [] 
   (-> 
     (js/nv.models.lineChart)
@@ -63,9 +70,10 @@
                         :x                  (fn [d i] i)
                         :showXAxis          true
                         :showYAxis          true
-                        :transitionDuration 250}))))
+                        :transitionDuration 250
+                        :color              (colors)}))))
 
-(defn- pie-chart-model
+(defn pie-chart-model
   "Create a pie chart model."
   []
   (->
@@ -73,17 +81,28 @@
     (.options (clj->js {:margin {:left 50 :bottom 50}
                         :x      (fn [d] (.-key d))
                         :y      (fn [d] (.-value d))
-                        :color  (-> 
-                                  (js/d3.scale.category10)
-                                  (.range))}))))
+                        :color  (colors)}))))
+
+(defn discrete-bar-chart-model
+  "Create a bar chart model."
+  []
+  (->
+    (js/nv.models.discreteBarChart)
+    (.options (clj->js {:margin             {:left 50 :bottom 50}
+                        :x                  (fn [d] (.-key d))
+                        :y                  (fn [d] (.-value d))
+                        :showValues         true
+                        :transitionDuration 250
+                        :color              (colors)}))))
 
 (defn- make-model
   "Create the nvd3 model instanced based on the keyword identifier."
   [kw]
   (let [is? (partial keyword-identical? kw)]
     (cond
-      (is? :line-chart) (line-chart-model)
-      (is? :pie-chart)  (pie-chart-model) 
+      (is? :line-chart)          (line-chart-model)
+      (is? :pie-chart)           (pie-chart-model)
+      (is? :discrete-bar-chart)  (discrete-bar-chart-model) 
       :else (throw (js/Error. "No valid chart type configured.")))))
 
 (defn- render-chart
@@ -92,12 +111,12 @@
   
   (let [model   (make-model (:type config))
         datum   (:datum config)
-        options (:options config)
+        options (:options config {})
         xaxis   (.-xAxis model)
         yaxis   (.-yAxis model)
+        xlabel  (:xlabel options "X")
+        ylabel  (:ylabel options "Y")
         has?    (partial contains? options)]
-    
-    (comment "line model")
     
     (when (has? :xlabel)
       (.axisLabel xaxis (:xlabel options)))
@@ -111,8 +130,6 @@
     (when (has? :yformat)
       (.tickFormat yaxis (js/d3.format (:yformat options))))
 
-    (comment "pie model")
-    
     (when (has? :valueFormat)
       (.valueFormat model (js/d3.format (:valueFormat options))))
     

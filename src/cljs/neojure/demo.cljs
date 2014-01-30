@@ -14,7 +14,7 @@
   []
   (js/Math.random))
 
-(defn sin-and-cos-series
+(defn sin-and-cos-dataset
   "Produce the sin and cos data used by the line chart nvd3 demo"
   [max]
   (let [r          (range 0 max)
@@ -40,8 +40,21 @@
       :key    "Random Cosine"
       :color  "#667711"}]))
 
-(defn discrete-series
-  "Produce a chart "
+(defn upward-dataset
+  "Produce values for use in a bar chart"
+  [max]
+  (let [nums (range 1 max)
+        robj  #(identity {:x % :y (* % (random))})
+        vals  #(map robj nums)]
+    [{:key   "Motorola"
+      :values (vals)}
+     {:key   "Samsung"
+      :values (vals)}
+     {:key   "LG"
+      :values (vals)}]))
+
+(defn single-value-dataset
+  "Produce a chart of single values"
   []
   [{:key "Facebook"
     :value (random)}
@@ -58,7 +71,26 @@
    {:key "IBM"
     :value (random)}])
 
-(defn put-chart-dom
+(defn discrete-bar-chart-dataset
+  "Produce a chart of single values"
+  []
+  [{:key    "Market Share"
+    :values [{:key "Facebook"
+              :value (random)}
+             {:key "Google"
+              :value (random)}
+             {:key "Apple"
+              :value (random)}
+             {:key "Microsoft"
+              :value (random)}
+             {:key "Cisco"
+              :value (random)}
+             {:key "Intel"
+              :value (random)}
+             {:key "IBM"
+              :value (random)}]}])
+
+(defn set-elements
   "Assert the div and svg container elements"
   [id]
   (let [bodyselection (dom/select "body")
@@ -67,12 +99,15 @@
     (dom/style idselection "width:650px; height:450px")
     (dom/style svgselection "width:600px; height:400px")))
 
+;--------------------------------------------------------------------
+; demo functions
+;--------------------------------------------------------------------
+
 (defn create-demo-line-chart
-  "Create a a line chart by adding a few dom elements first"
   [id]
-  (put-chart-dom id) 
+  (set-elements id) 
   (frontend/create id {:type   :line-chart
-                       :datum   (sin-and-cos-series 100)
+                       :datum   (sin-and-cos-dataset 100)
                        :options {:xlabel  "Time (s)"
                                  :xformat ",.1f"
                                  :ylabel  "Voltage (v)"
@@ -80,16 +115,25 @@
 
 (defn update-demo-line-chart
   [id]
-  (frontend/update id (sin-and-cos-series 1)))
+  (frontend/update id (sin-and-cos-dataset 1)))
 
 (defn create-demo-pie-chart
-  "Create a a line chart by adding a few dom elements first"
   [id]
-  (put-chart-dom id)
+  (set-elements id)
   (frontend/create id {:type   :pie-chart
-                       :datum   (discrete-series)
+                       :datum   (single-value-dataset)
                        :options {:valueFormat ",.2f"}}))
 
 (defn update-demo-pie-chart
   [id]
-  (frontend/update id (discrete-series)))
+  (frontend/update id (single-value-dataset)))
+
+(defn create-demo-discrete-bar-chart
+  [id]
+  (set-elements id)
+  (frontend/create id {:type   :discrete-bar-chart
+                       :datum  (discrete-bar-chart-dataset)}))
+
+(defn update-demo-discrete-bar-chart
+  [id]
+  (frontend/update id (discrete-bar-chart-dataset)))
