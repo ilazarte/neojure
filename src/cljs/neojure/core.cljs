@@ -1,4 +1,4 @@
-(ns neojure.frontend
+(ns neojure.core
   (:require [neojure.dom :as dom]))
 
 ;--------------------------------------------------------------------
@@ -124,12 +124,18 @@
     (when (has? :xformat)
       (.tickFormat xaxis (js/d3.format (:xformat options))))
 
+    (when (has? :x-time-format)
+      (.tickFormat xaxis (js/d3.time.format (:x-time-format options))))
+    
     (when (has? :ylabel)
       (.axisLabel yaxis (:ylabel options)))
 
     (when (has? :yformat)
       (.tickFormat yaxis (js/d3.format (:yformat options))))
 
+    (when (has? :y-time-format)
+      (.tickFormat yaxis (js/d3.time.format (:y-time-format options))))
+    
     (when (has? :valueFormat)
       (.valueFormat model (js/d3.format (:valueFormat options))))
     

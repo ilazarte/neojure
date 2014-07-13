@@ -1,6 +1,6 @@
 (ns neojure.demo
-  (:require [neojure.dom      :as dom]
-            [neojure.frontend :as frontend]))
+  (:require [neojure.dom  :as dom]
+            [neojure.core :as nj]))
 
 (defn- sin
   [val]
@@ -106,34 +106,34 @@
 (defn create-demo-line-chart
   [id]
   (set-elements id) 
-  (frontend/create id {:type   :line-chart
-                       :datum   (sin-and-cos-dataset 100)
-                       :options {:xlabel  "Time (s)"
-                                 :xformat ",.1f"
-                                 :ylabel  "Voltage (v)"
-                                 :yformat ",.2f"}}))
+  (nj/create id {:type    :line-chart
+                 :datum   (sin-and-cos-dataset 100)
+                 :options {:xlabel  "Time (s)"
+                           :xformat ",.1f"
+                           :ylabel  "Voltage (v)"
+                           :yformat ",.2f"}}))
 
 (defn update-demo-line-chart
   [id]
-  (frontend/update id (sin-and-cos-dataset 1)))
+  (nj/update id (sin-and-cos-dataset 1)))
 
 (defn create-demo-pie-chart
   [id]
   (set-elements id)
-  (frontend/create id {:type   :pie-chart
-                       :datum   (single-value-dataset)
-                       :options {:valueFormat ",.2f"}}))
+  (nj/create id {:type    :pie-chart
+                 :datum   (single-value-dataset)
+                 :options {:valueFormat ",.2f"}}))
 
 (defn update-demo-pie-chart
   [id]
-  (frontend/update id (single-value-dataset)))
+  (nj/update id (single-value-dataset)))
 
 (defn create-demo-discrete-bar-chart
   [id]
   (set-elements id)
-  (frontend/create id {:type   :discrete-bar-chart
-                       :datum  (discrete-bar-chart-dataset)}))
+  (nj/create id {:type  :discrete-bar-chart
+                 :datum (discrete-bar-chart-dataset)}))
 
 (defn update-demo-discrete-bar-chart
   [id]
-  (frontend/update id (discrete-bar-chart-dataset)))
+  (nj/update id (discrete-bar-chart-dataset)))

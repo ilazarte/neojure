@@ -1,5 +1,2 @@
-/brepl
-/neojure
-/public
-/ring
-/tools
+/public/
+/ring/

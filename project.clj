@@ -12,7 +12,9 @@
   :source-paths ["src/clj" "src/cljs"]
 
   :dependencies [[org.clojure/clojure "1.5.1"]
-                 [org.clojure/clojurescript "0.0-2138"]]
+                 [org.clojure/clojurescript "0.0-2173"]
+                 [org.webjars/d3js "3.4.9"]
+                 [org.webjars/nvd3 "1.1.15-beta-2"]]
 
   :plugins [[lein-cljsbuild "1.0.1"]]
 
